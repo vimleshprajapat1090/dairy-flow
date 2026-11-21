@@ -80,7 +80,7 @@ function bill(c,f,t){
  return{eff:eff,note:note,inE:inE,inP:inP,prev:prev,days:Math.round((P(t)-P(eff))/864e5)+1,tm:tm,te:te,a:a,inX:inX,ia:ia,paid:paid,net:prev+a+ia-paid}
 }
 function totalDue(c){return sum(S.e.filter(function(x){return x.cid===c.id}),amt)+sum(S.x.filter(function(x){return x.cid===c.id}),xA)-sum(S.p.filter(function(x){return x.cid===c.id}),function(x){return x.amt})}
-function opts(sel){return S.c.map(function(c){return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')}
+function opts(sel){return S.c.map(function(c){return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.name)+(c.off?' (inactive)':'')+'</option>'}).join('')}
 function empty(){return '<div class="card" style="text-align:center">First add a customer in the <b>Customers</b> tab.<br><br><button onclick="go(\'c\')">+ Add customer</button></div>'}
 function go(t){tab=t;ed=null;pend='';render()}
 function render(){
@@ -94,7 +94,7 @@ function syncDates(){document.querySelectorAll('.dw').forEach(function(w){var v=
 document.addEventListener('change',syncDates);document.addEventListener('input',syncDates);
 function settledTill(c){var T='';S.p.forEach(function(p){if(p.cid===c.id&&p.till&&p.till>T)T=p.till});return T}
 function idxOf(c,s){var d=P(s),y=d.getFullYear(),m=d.getMonth();if(d<cs(c,y,m))m--;return y*12+m}
-function missing(c){var T=settledTill(c),f=c.start,y=addD(today(),-1),lo=addD(today(),-31),o=[];if(T&&addD(T,1)>f)f=addD(T,1);if(f<lo)f=lo;for(var d=f;d<=y;d=addD(d,1)){if(!S.e.some(function(x){return x.cid===c.id&&x.date===d}))o.push(d)}return o}
+function missing(c){if(c.off)return [];var T=settledTill(c),f=c.start,y=addD(today(),-1),lo=addD(today(),-31),o=[];if(T&&addD(T,1)>f)f=addD(T,1);if(c.resume&&c.resume>f)f=c.resume;if(f<lo)f=lo;for(var d=f;d<=y;d=addD(d,1)){if(!S.e.some(function(x){return x.cid===c.id&&x.date===d}))o.push(d)}return o}
 function fixD(id,d){ec=id;predate=d;et='m';tab='e';ed=null;pend='';render()}
 function markOff(id,b){if(b.dataset.s!=='1'){b.dataset.s='1';b.textContent='Sure?';setTimeout(function(){b.dataset.s='';b.textContent='No milk (all)'},3000);return}missing(cust(id)).forEach(function(d){setE(id,d,0,0)});save();toast('Marked as no milk');render()}
 function showHist(){hc=bc;tab='i';ed=null;render()}
@@ -164,10 +164,11 @@ function pull(){var g=cfg();if(!g)return;rpc('get_dairy',{p_code:g.c}).then(func
 function syncCard(){var g=cfg()||{};return '<div class="card"><b>☁ Cloud sync</b><div class="mu">Same data on phone and tablet, and safe if a phone is lost. Use the same 3 details on every device.</div><label>Supabase URL</label><input id="su" value="'+esc(g.u)+'" placeholder="https://xxxx.supabase.co"><label>Supabase anon key</label><input id="sk" value="'+esc(g.k)+'"><label>Your secret sync code (long and private)</label><input id="sc" value="'+esc(g.c)+'"><button class="w" onclick="saveSy()">Save &amp; sync now</button>'+(g.u?'<button class="g w" onclick="offSy()">Turn off sync</button>':'')+'</div>'}
 function saveSy(){var u=$('su').value.trim(),k=$('sk').value.trim(),c=$('sc').value.trim();if(!u||!k||c.length<8)return toast('Fill all 3 (code: 8+ characters)');try{localStorage.setItem(SK,JSON.stringify({u:u,k:k,c:c}))}catch(x){}toast('Syncing…');pull()}
 function offSy(){try{localStorage.removeItem(SK)}catch(x){}setSy('');toast('Sync off');render()}
+function togOff(id){var c=cust(id);if(c.off){c.off=false;c.resume=today();toast('Customer reactivated ✔')}else{c.off=true;c.offFrom=today();toast('Customer paused. You can reactivate anytime.')}save();render()}
 /* HOME */
 function vHome(){
  var t=today();if(!hd||hd>t)hd=t;
- var rows=S.c.filter(function(c){return c.start<=hd}),L=0,due=0;
+ var rows=S.c.filter(function(c){return c.start<=hd&&!(c.off&&hd>=c.offFrom)}),L=0,due=0;
  S.e.forEach(function(e){if(e.date===hd)L+=e.m+e.e});S.c.forEach(function(c){due+=totalDue(c)});
  var h='<div class="row"><div class="stat"><b>'+L+' L</b><span>'+(hd===t?'Today':dsp(hd))+' milk</span></div><div class="stat"><b class="'+(due>0?'rd':'gr')+'">'+rs(due)+'</b><span>Total pending</span></div></div><div style="height:12px"></div>';
  if(!S.c.length)return h+empty();h+=missCard();
@@ -266,7 +267,7 @@ function vCust(){
  var c=ed&&cust(ed)||{},h='<div class="card"><b>'+(c.id?'Edit customer':'New customer')+'</b><label>Name</label><input id="cn" value="'+esc(c.name)+'"><div class="row"><div><label>Mobile</label><input id="cp" inputmode="tel" value="'+esc(c.phone)+'"></div><div><label>Rate ₹ per litre</label><input id="cr" inputmode="decimal" value="'+(c.rate||'')+'"></div></div>'+(c.id?'<label>If you change the rate, apply it from (date)</label><input type="date" id="cf" value="'+today()+'"><div class="mu">'+((c.rates&&c.rates.length>1)?'Rate history: '+c.rates.map(function(z){return dm(z.from)+' → ₹'+z.rate}).join(' · '):'Old entries keep their old rate; the new rate applies from this date.')+'</div>':'')+
  '<label>Start date (billing cycle starts on this day every month)</label><input type="date" id="cd" value="'+(c.start||today())+'"><div class="row"><div><label>Default Morning M (L)</label><input id="cm" inputmode="decimal" value="'+(c.dm||'')+'"></div><div><label>Default Evening E (L)</label><input id="ce" inputmode="decimal" value="'+(c.de||'')+'"></div></div>'+
  '<button class="w" onclick="saveC()">'+(c.id?'Update':'+ Add customer')+'</button>'+(c.id?'<button class="g w" onclick="ed=null;render()">Cancel</button>':'')+'</div><div class="card"><b>Customers ('+S.c.length+')</b>';
- S.c.forEach(function(x){var d=totalDue(x);h+='<div class="li"><div><b>'+esc(x.name)+'</b><div class="mu">Start '+dsp(x.start)+' · ₹'+x.rate+'/L · cycle from day '+P(x.start).getDate()+'</div></div><div style="text-align:right"><b class="'+(d>0?'rd':'gr')+'">'+rs(d)+'</b><br><button class="g sm" onclick="ed=\''+x.id+'\';render()">Edit</button><button class="d" onclick="del(\'c\',\''+x.id+'\',this)">Delete</button></div></div>'});
+ S.c.forEach(function(x){var d=totalDue(x);h+='<div class="li"><div><b>'+esc(x.name)+(x.off?' <span class="tag">inactive</span>':'')+'</b><div class="mu">Start '+dsp(x.start)+' · ₹'+x.rate+'/L · cycle from day '+P(x.start).getDate()+'</div></div><div style="text-align:right"><b class="'+(d>0?'rd':'gr')+'">'+rs(d)+'</b><br><button class="g sm" data-i="'+x.id+'" onclick="togOff(this.dataset.i)">'+(x.off?'Reactivate':'Pause')+'</button><button class="g sm" onclick="ed=\''+x.id+'\';render()">Edit</button><button class="d" onclick="del(\'c\',\''+x.id+'\',this)">Delete</button></div></div>'});
  h+='</div>'+itemsCard()+lockCard()+syncCard()+'<div class="card"><b>Backup</b><div class="mu">Data is saved in this browser. Copy a backup now and then and keep it safe.</div><div class="row"><button class="g w" onclick="bk()">Copy backup</button><button class="g w" onclick="rs2()">Restore</button></div><textarea id="bt" rows="3" placeholder="Paste a backup here to restore" style="margin-top:8px"></textarea></div>';
  return h
 }
