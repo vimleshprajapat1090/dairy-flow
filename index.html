@@ -43,7 +43,7 @@ var LOGO='<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><l
 var S={c:[],e:[],p:[]},hc='',rm=0,predate='',tab='h',hd='',et='m',ec='',ed=null,bc='',bi=0,bf='',bt='',pend='',KEY='dairyflow_v1';
 var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 try{var r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(x){}S.i=S.i||[];S.x=S.x||[];
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(x){}}
+function save(){S.ts=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(x){}schedPush()}
 var $=function(i){return document.getElementById(i)};
 var uid=function(){return Math.random().toString(36).slice(2,9)};
 var pad=function(n){return String(n).padStart(2,'0')};
@@ -84,7 +84,7 @@ function opts(sel){return S.c.map(function(c){return '<option value="'+c.id+'"'+
 function empty(){return '<div class="card" style="text-align:center">First add a customer in the <b>Customers</b> tab.<br><br><button onclick="go(\'c\')">+ Add customer</button></div>'}
 function go(t){tab=t;ed=null;pend='';render()}
 function render(){
- $('lg').innerHTML=LOGO;$('dt').textContent=dsp(today());
+ $('lg').innerHTML=LOGO;$('dt').textContent=dsp(today())+(syncMsg?' · '+syncMsg:'');
  $('nv').innerHTML=[['h','🏠','Home'],['e','✏️','Entry'],['b','🧾','Bill'],['d','📊','Report'],['c','👥','Customers']].map(function(x){return '<button class="'+(tab===x[0]?'on':'')+'" onclick="go(\''+x[0]+'\')"><span>'+x[1]+'</span>'+x[2]+'</button>'}).join('');
  $('m').innerHTML={h:vHome,e:vEntry,b:vBill,d:vDash,c:vCust,i:vHist}[tab]();wrapDates();
  window.scrollTo(0,0)
@@ -151,6 +151,19 @@ function saveX(){
  if(ed){var x=S.x.find(function(z){return z.id===ed});x.date=d;x.qty=q;x.price=p;x.name=it.name;ed=null}else S.x.push({id:uid(),cid:ec,date:d,name:it.name,qty:q,price:p});
  save();toast('Item saved ✔');render()}
 function editX(id){var x=S.x.find(function(z){return z.id===id});ed=id;render();$('xd').value=x.date;var it=S.i.find(function(z){return z.name===x.name});if(it)$('xi').value=it.id;$('xq').value=x.qty;$('xr').value=x.price;syncDates();window.scrollTo(0,0)}
+var syncMsg='',SK='dairyflow_sync',pt=0;
+function cfg(){try{return JSON.parse(localStorage.getItem(SK)||'null')}catch(x){return null}}
+function rpc(f,body){var g=cfg();return fetch(g.u.replace(/\/$/,'')+'/rest/v1/rpc/'+f,{method:'POST',headers:{'Content-Type':'application/json',apikey:g.k,Authorization:'Bearer '+g.k},body:JSON.stringify(body)}).then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})}
+function setSy(m){syncMsg=m;$('dt').textContent=dsp(today())+(m?' · '+m:'')}
+function schedPush(){if(!cfg())return;clearTimeout(pt);setSy('☁ saving…');pt=setTimeout(push,1500)}
+function push(){var g=cfg();if(!g)return;rpc('put_dairy',{p_code:g.c,p_data:S}).then(function(){setSy('☁ synced')}).catch(function(){setSy('☁ offline')})}
+function pull(){var g=cfg();if(!g)return;rpc('get_dairy',{p_code:g.c}).then(function(d){
+ if(d&&d.ts&&d.ts>(S.ts||0)){S=d;S.i=S.i||[];S.x=S.x||[];try{localStorage.setItem(KEY,JSON.stringify(S))}catch(x){}render();setSy('☁ synced')}
+ else if(!d||(S.ts||0)>(d.ts||0))push();else setSy('☁ synced')
+}).catch(function(){setSy('☁ offline')})}
+function syncCard(){var g=cfg()||{};return '<div class="card"><b>☁ Cloud sync</b><div class="mu">Same data on phone and tablet, and safe if a phone is lost. Use the same 3 details on every device.</div><label>Supabase URL</label><input id="su" value="'+esc(g.u)+'" placeholder="https://xxxx.supabase.co"><label>Supabase anon key</label><input id="sk" value="'+esc(g.k)+'"><label>Your secret sync code (long and private)</label><input id="sc" value="'+esc(g.c)+'"><button class="w" onclick="saveSy()">Save &amp; sync now</button>'+(g.u?'<button class="g w" onclick="offSy()">Turn off sync</button>':'')+'</div>'}
+function saveSy(){var u=$('su').value.trim(),k=$('sk').value.trim(),c=$('sc').value.trim();if(!u||!k||c.length<8)return toast('Fill all 3 (code: 8+ characters)');try{localStorage.setItem(SK,JSON.stringify({u:u,k:k,c:c}))}catch(x){}toast('Syncing…');pull()}
+function offSy(){try{localStorage.removeItem(SK)}catch(x){}setSy('');toast('Sync off');render()}
 /* HOME */
 function vHome(){
  var t=today();if(!hd||hd>t)hd=t;
@@ -254,7 +267,7 @@ function vCust(){
  '<label>Start date (billing cycle starts on this day every month)</label><input type="date" id="cd" value="'+(c.start||today())+'"><div class="row"><div><label>Default Morning M (L)</label><input id="cm" inputmode="decimal" value="'+(c.dm||'')+'"></div><div><label>Default Evening E (L)</label><input id="ce" inputmode="decimal" value="'+(c.de||'')+'"></div></div>'+
  '<button class="w" onclick="saveC()">'+(c.id?'Update':'+ Add customer')+'</button>'+(c.id?'<button class="g w" onclick="ed=null;render()">Cancel</button>':'')+'</div><div class="card"><b>Customers ('+S.c.length+')</b>';
  S.c.forEach(function(x){var d=totalDue(x);h+='<div class="li"><div><b>'+esc(x.name)+'</b><div class="mu">Start '+dsp(x.start)+' · ₹'+x.rate+'/L · cycle from day '+P(x.start).getDate()+'</div></div><div style="text-align:right"><b class="'+(d>0?'rd':'gr')+'">'+rs(d)+'</b><br><button class="g sm" onclick="ed=\''+x.id+'\';render()">Edit</button><button class="d" onclick="del(\'c\',\''+x.id+'\',this)">Delete</button></div></div>'});
- h+='</div>'+itemsCard()+lockCard()+'<div class="card"><b>Backup</b><div class="mu">Data is saved in this browser. Copy a backup now and then and keep it safe.</div><div class="row"><button class="g w" onclick="bk()">Copy backup</button><button class="g w" onclick="rs2()">Restore</button></div><textarea id="bt" rows="3" placeholder="Paste a backup here to restore" style="margin-top:8px"></textarea></div>';
+ h+='</div>'+itemsCard()+lockCard()+syncCard()+'<div class="card"><b>Backup</b><div class="mu">Data is saved in this browser. Copy a backup now and then and keep it safe.</div><div class="row"><button class="g w" onclick="bk()">Copy backup</button><button class="g w" onclick="rs2()">Restore</button></div><textarea id="bt" rows="3" placeholder="Paste a backup here to restore" style="margin-top:8px"></textarea></div>';
  return h
 }
 function saveC(){
@@ -266,6 +279,6 @@ function saveC(){
 }
 function bk(){var j=JSON.stringify(S);$('bt').value=j;try{navigator.clipboard.writeText(j).then(function(){toast('Backup copied')})}catch(x){toast('Copy the text manually')}}
 function rs2(){try{var d=JSON.parse($('bt').value);if(!d.c||!d.e||!d.p)throw 0;S=d;S.i=S.i||[];S.x=S.x||[];save();toast('Restored');render()}catch(x){toast('Invalid backup')}}
-var ic=document.createElement('link');ic.rel='icon';ic.href='data:image/svg+xml,'+encodeURIComponent(LOGO);document.head.appendChild(ic);$('lgo').innerHTML=LOGO;$('lgo').firstChild.style.cssText='width:100%;height:100%';lock();document.addEventListener('visibilitychange',function(){if(document.hidden)hid=Date.now();else if(hid&&Date.now()-hid>30000)lock()});
+var ic=document.createElement('link');ic.rel='icon';ic.href='data:image/svg+xml,'+encodeURIComponent(LOGO);document.head.appendChild(ic);$('lgo').innerHTML=LOGO;$('lgo').firstChild.style.cssText='width:100%;height:100%';lock();document.addEventListener('visibilitychange',function(){if(document.hidden)hid=Date.now();else{if(hid&&Date.now()-hid>30000)lock();pull()}});pull();
 render();
 </script></body></html>
