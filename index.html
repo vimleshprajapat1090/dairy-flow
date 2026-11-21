@@ -30,6 +30,8 @@ nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:9px 0;
 .q{width:62px;padding:8px 4px;text-align:center}
 .wn{background:var(--soft);border:1px solid var(--ac);border-radius:12px;padding:9px;margin-top:8px;font-size:13px}.wn:empty{display:none}
 #t{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:#0b2545;color:#fff;padding:9px 16px;border-radius:20px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:20}#t.s{opacity:1}
+.dw{position:relative}.dv{display:block;padding:10px;min-height:42px;border:1px solid var(--bd);border-radius:12px;background:var(--bg);color:var(--tx)}.dv::after{content:"📅";float:right}.dw input{position:absolute;inset:0;width:100%;height:100%;opacity:0;padding:0;border:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.bars{display:flex;align-items:flex-end;gap:2px;height:80px;margin:8px 0 2px}.bars i{flex:1;background:linear-gradient(var(--ac),#1b7f86);border-radius:3px 3px 0 0}details summary{cursor:pointer;list-style:none}details summary::-webkit-details-marker{display:none}
 .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:10px;background:var(--soft);color:var(--pr)}
 </style></head><body>
 <header><span id="lg"></span><div><b>Dairy Flow</b><i>Smart milk accounts</i></div><small id="dt"></small></header>
@@ -37,7 +39,7 @@ nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:9px 0;
 <nav id="nv"></nav><div id="t"></div>
 <script>
 var LOGO='<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b2545"/><stop offset="1" stop-color="#1b8a8f"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="url(#g)"/><path d="M50 15C50 15 27 42 27 58a23 23 0 0 0 46 0C73 42 50 15 50 15Z" fill="#fff8ec"/><path d="M31 60q6.5-8 13 0t13 0t13 0" stroke="#f4a300" stroke-width="5.5" stroke-linecap="round" fill="none"/><circle cx="41" cy="44" r="3.2" fill="#fff" opacity=".8"/></svg>';
-var S={c:[],e:[],p:[]},tab='h',hd='',et='m',ec='',ed=null,bc='',bi=0,bf='',bt='',pend='',KEY='dairyflow_v1';
+var S={c:[],e:[],p:[]},hc='',rm=0,predate='',tab='h',hd='',et='m',ec='',ed=null,bc='',bi=0,bf='',bt='',pend='',KEY='dairyflow_v1';
 var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 try{var r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(x){}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(x){}}
@@ -82,21 +84,56 @@ function empty(){return '<div class="card" style="text-align:center">First add a
 function go(t){tab=t;ed=null;pend='';render()}
 function render(){
  $('lg').innerHTML=LOGO;$('dt').textContent=dsp(today());
- $('nv').innerHTML=[['h','🏠','Home'],['e','✏️','Entry'],['b','🧾','Bill'],['c','👥','Customers']].map(function(x){return '<button class="'+(tab===x[0]?'on':'')+'" onclick="go(\''+x[0]+'\')"><span>'+x[1]+'</span>'+x[2]+'</button>'}).join('');
- $('m').innerHTML={h:vHome,e:vEntry,b:vBill,c:vCust}[tab]();
+ $('nv').innerHTML=[['h','🏠','Home'],['e','✏️','Entry'],['b','🧾','Bill'],['d','📊','Report'],['c','👥','Customers']].map(function(x){return '<button class="'+(tab===x[0]?'on':'')+'" onclick="go(\''+x[0]+'\')"><span>'+x[1]+'</span>'+x[2]+'</button>'}).join('');
+ $('m').innerHTML={h:vHome,e:vEntry,b:vBill,d:vDash,c:vCust,i:vHist}[tab]();wrapDates();
  window.scrollTo(0,0)
 }
+function wrapDates(){document.querySelectorAll('#m input[type=date]').forEach(function(i){var w=document.createElement('div'),s=document.createElement('span');w.className='dw';s.className='dv';i.parentNode.insertBefore(w,i);w.appendChild(s);w.appendChild(i)});syncDates()}
+function syncDates(){document.querySelectorAll('.dw').forEach(function(w){var v=w.querySelector('input').value;w.firstChild.textContent=v?v.slice(8)+'/'+v.slice(5,7)+'/'+v.slice(0,4):'dd/mm/yyyy'})}
+document.addEventListener('change',syncDates);document.addEventListener('input',syncDates);
+function settledTill(c){var T='';S.p.forEach(function(p){if(p.cid===c.id&&p.till&&p.till>T)T=p.till});return T}
+function idxOf(c,s){var d=P(s),y=d.getFullYear(),m=d.getMonth();if(d<cs(c,y,m))m--;return y*12+m}
+function missing(c){var T=settledTill(c),f=c.start,y=addD(today(),-1),lo=addD(today(),-31),o=[];if(T&&addD(T,1)>f)f=addD(T,1);if(f<lo)f=lo;for(var d=f;d<=y;d=addD(d,1)){if(!S.e.some(function(x){return x.cid===c.id&&x.date===d}))o.push(d)}return o}
+function fixD(id,d){ec=id;predate=d;et='m';tab='e';ed=null;pend='';render()}
+function markOff(id,b){if(b.dataset.s!=='1'){b.dataset.s='1';b.textContent='Sure?';setTimeout(function(){b.dataset.s='';b.textContent='No milk (all)'},3000);return}missing(cust(id)).forEach(function(d){setE(id,d,0,0)});save();toast('Marked as no milk');render()}
+function showHist(){hc=bc;tab='i';ed=null;render()}
+function missCard(){var h='',n=0;S.c.forEach(function(c){var m=missing(c);if(!m.length)return;n+=m.length;h+='<div class="li" style="align-items:flex-start"><div style="flex:1"><b>'+esc(c.name)+'</b> <span class="mu">'+m.length+' day(s)</span><div>'+m.slice(-8).map(function(d){return '<button class="g sm" style="margin:3px 3px 0 0" data-c="'+c.id+'" data-d="'+d+'" onclick="fixD(this.dataset.c,this.dataset.d)">'+dm(d)+'</button>'}).join('')+(m.length>8?' <span class="mu">+'+(m.length-8)+' older</span>':'')+'</div></div><button class="d" data-c="'+c.id+'" onclick="markOff(this.dataset.c,this)">No milk (all)</button></div>'});return n?'<div class="card"><b>⚠️ Entries pending ('+n+' days)</b><div class="mu">Tap a date to enter milk. If a customer did not take milk, use No milk.</div>'+h+'</div>':''}
+function vDash(){
+ if(!S.c.length)return empty();
+ var t=new Date(),cur=t.getFullYear()*12+t.getMonth();if(!rm||rm>cur)rm=cur;
+ var y=Math.floor(rm/12),m=rm%12,a=fmt(new Date(y,m,1)),b=fmt(new Date(y,m+1,0)),td=today();
+ var es=S.e.filter(function(x){return x.date>=a&&x.date<=b}),ps=S.p.filter(function(x){return x.date>=a&&x.date<=b});
+ var lit=sum(es,function(x){return x.m+x.e}),sales=sum(es,amt),rec=sum(ps,function(p){return p.amt}),due=sum(S.c,totalDue),tl=sum(S.e.filter(function(x){return x.date===td}),function(x){return x.m+x.e}),miss=sum(S.c,function(c){return missing(c).length});
+ var n=dim(y,m),day=[];for(var i=0;i<n;i++)day.push(0);es.forEach(function(x){day[+x.date.slice(8)-1]+=x.m+x.e});var mx=Math.max.apply(null,day.concat([1]));
+ var h='<div class="card"><div class="row"><button class="g sm" onclick="rm--;render()">◀</button><b style="text-align:center">'+MO[m]+' '+y+' report</b><button class="g sm" '+(rm>=cur?'disabled style="opacity:.4"':'')+' onclick="rm++;render()">▶</button></div></div>';
+ h+='<div class="grid">'+[[rd(tl)+' L','Today'],[rd(lit)+' L','Milk this month'],[rs(sales),'Sales this month'],[rs(rec),'Received this month'],[rs(due),'Total pending'],[miss,'Days not entered']].map(function(x){return '<div class="stat"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>'}).join('')+'</div>';
+ h+='<div class="card" style="margin-top:12px"><b>Daily milk (L)</b><div class="bars">'+day.map(function(v,i){return '<i title="'+(i+1)+'" style="height:'+Math.max(3,v/mx*100)+'%"></i>'}).join('')+'</div><div class="mu" style="display:flex;justify-content:space-between"><span>1</span><span>'+n+'</span></div></div>';
+ var rows=S.c.map(function(c){var e2=es.filter(function(x){return x.cid===c.id});return{n:c.name,l:sum(e2,function(x){return x.m+x.e}),a:sum(e2,amt),d:totalDue(c)}}).sort(function(p,q){return q.d-p.d});
+ h+='<div class="card sc"><b>Customer report</b><table><tr><th>Customer</th><th style="text-align:right">Litres</th><th>Amount</th><th>Pending</th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.n)+'</td><td style="text-align:right">'+rd(r.l)+'</td><td>'+rd(r.a)+'</td><td class="'+(r.d>0?'rd':'gr')+'">'+rd(r.d)+'</td></tr>'}).join('')+'</table></div>';
+ return h}
+function vHist(){
+ if(!S.c.length)return empty();if(!cust(hc))hc=S.c[0].id;var c=cust(hc),T=settledTill(c);
+ var h='<div class="card"><b>Customer history</b><label>Customer</label><select onchange="hc=this.value;render()">'+opts(hc)+'</select><div class="mu" style="margin-top:6px">Settled periods are saved here and no longer show in recent entries.</div></div>';
+ var es=S.e.filter(function(x){return x.cid===c.id&&T&&x.date<=T}),ps=S.p.filter(function(p){return p.cid===c.id});
+ if(!es.length)return h+'<div class="card mu">No settled period yet. Add a payment with "Account settled up to" and that period will move here.</div>';
+ var ids={};es.forEach(function(x){ids[idxOf(c,x.date)]=1});
+ Object.keys(ids).map(Number).sort(function(a,b){return b-a}).forEach(function(i){
+  var y=Math.floor(i/12),m=i%12,s=fmt(cs(c,y,m)),e=fmt(ce(c,y,m));if(s<c.start)s=c.start;if(e>T)e=T;
+  var inE=es.filter(function(x){return x.date>=s&&x.date<=e}).sort(function(a,b){return a.date<b.date?-1:1}),inP=ps.filter(function(p){var k=p.till||p.date;return k>=s&&k<=e}),a=sum(inE,amt),r=sum(inP,function(p){return p.amt}),rows='';
+  inE.forEach(function(x){[['M',x.m],['E',x.e]].forEach(function(z){if(z[1]>0)rows+='<tr><td>'+dm(x.date)+'</td><td>'+z[0]+'</td><td>'+z[1]+' × '+x.rate+'</td><td>'+rd(z[1]*x.rate)+'</td></tr>'})});
+  h+='<details class="card"><summary><b>'+dsp(s)+' – '+dsp(e)+'</b> <span class="tag">'+(r>=a?'✔ paid':'balance '+rs(a-r))+'</span><div class="mu">'+rd(sum(inE,function(x){return x.m+x.e}))+' L · Bill '+rs(a)+' · Received '+rs(r)+'</div></summary><div class="sc"><table><tr><th>Date</th><th>M/E</th><th>Qty × Rate</th><th>Amount</th></tr>'+rows+'</table></div>'+inP.map(function(p){return '<div class="li"><span class="mu">Paid '+dsp(p.date)+(p.till?' · settled till '+dm(p.till):'')+'</span><b>'+rs(p.amt)+'</b></div>'}).join('')+'</details>'});
+ return h}
 /* HOME */
 function vHome(){
  var t=today();if(!hd||hd>t)hd=t;
  var rows=S.c.filter(function(c){return c.start<=hd}),L=0,due=0;
  S.e.forEach(function(e){if(e.date===hd)L+=e.m+e.e});S.c.forEach(function(c){due+=totalDue(c)});
  var h='<div class="row"><div class="stat"><b>'+L+' L</b><span>'+(hd===t?'Today':dsp(hd))+' milk</span></div><div class="stat"><b class="'+(due>0?'rd':'gr')+'">'+rs(due)+'</b><span>Total pending</span></div></div><div style="height:12px"></div>';
- if(!S.c.length)return h+empty();
+ if(!S.c.length)return h+empty();h+=missCard();
  h+='<div class="card"><label>Date (up to today)</label><input type="date" max="'+t+'" value="'+hd+'" onchange="hd=this.value;pend=\'\';render()"><div class="mu" style="margin:8px 0 4px">Quick entry: M = Morning, E = Evening (litres)</div>';
  rows.forEach(function(c){
-  var e=S.e.find(function(x){return x.cid===c.id&&x.date===hd});
-  h+='<div class="li"><div style="flex:1"><b>'+esc(c.name)+'</b><div class="mu">₹'+c.rate+'/L'+(e?' · <span class="gr">✔ saved</span>':'')+'</div></div><input class="q" inputmode="decimal" id="qm'+c.id+'" placeholder="M" value="'+(e?e.m:'')+'"><input class="q" inputmode="decimal" id="qe'+c.id+'" placeholder="E" value="'+(e?e.e:'')+'"></div>'
+  var e=S.e.find(function(x){return x.cid===c.id&&x.date===hd});if(settledTill(c)>=hd){h+='<div class="li"><div><b>'+esc(c.name)+'</b><div class="mu">🔒 Settled till '+dsp(settledTill(c))+'</div></div></div>';return}
+  h+='<div class="li"><div style="flex:1"><b>'+esc(c.name)+'</b><div class="mu">₹'+c.rate+'/L'+(e?' · <span class="gr">✔ '+(e.m+e.e?'saved':'no milk')+'</span>':'')+'</div></div><input class="q" inputmode="decimal" id="qm'+c.id+'" placeholder="M" value="'+(e?e.m:'')+'"><input class="q" inputmode="decimal" id="qe'+c.id+'" placeholder="E" value="'+(e?e.e:'')+'"></div>'
  });
  return h+'<div id="wn" class="wn"></div><div class="row"><button class="g w" onclick="fillDef()">Fill defaults</button><button class="w" onclick="saveAll()">✔ Save all</button></div></div>'
 }
@@ -112,15 +149,15 @@ function saveAll(){
 function setE(cid,d,m,e){var x=S.e.find(function(z){return z.cid===cid&&z.date===d});if(x){x.m=m;x.e=e}else S.e.push({id:uid(),cid:cid,date:d,m:m,e:e,rate:cust(cid).rate})}
 /* ENTRY */
 function vEntry(){
- if(!S.c.length)return empty();if(!cust(ec))ec=S.c[0].id;
+ if(!S.c.length)return empty();if(!cust(ec))ec=S.c[0].id;var dv0=predate||today();predate='';
  var c=cust(ec),t=today(),h='<div class="seg"><button class="'+(et==='m'?'on':'')+'" onclick="et=\'m\';ed=null;render()">🥛 Milk</button><button class="'+(et==='p'?'on':'')+'" onclick="et=\'p\';ed=null;render()">💰 Payment</button></div>';
  h+='<div class="card"><label>Customer</label><select onchange="ec=this.value;ed=null;pend=\'\';render()">'+opts(ec)+'</select>';
  if(et==='m'){
-  h+='<div class="row"><div><label>From date</label><input type="date" id="d1" min="'+c.start+'" max="'+t+'" value="'+t+'"></div><div><label>To date</label><input type="date" id="d2" min="'+c.start+'" max="'+t+'" value="'+t+'"></div></div>'+
+  h+='<div class="row"><div><label>From date</label><input type="date" id="d1" min="'+c.start+'" max="'+t+'" value="'+dv0+'"></div><div><label>To date</label><input type="date" id="d2" min="'+c.start+'" max="'+t+'" value="'+dv0+'"></div></div>'+
   '<div class="row"><div><label>Morning M (litres)</label><input id="qm" inputmode="decimal" value="'+(c.dm||'')+'"></div><div><label>Evening E (litres)</label><input id="qe" inputmode="decimal" value="'+(c.de||'')+'"></div></div>'+
-  '<div class="mu" style="margin-top:6px">For one day keep From and To the same. Pick a range to fill many days at once.</div><div id="wn" class="wn"></div><button class="w" onclick="saveM()">'+(ed?'Update entry':'Save entry')+'</button>';
+  '<div class="mu" style="margin-top:6px">For one day keep From and To the same. Pick a range to fill many days at once.</div><div id="wn" class="wn"></div><button class="w" onclick="saveM()">'+(ed?'Update entry':'Save entry')+'</button>'+(ed?'':'<button class="g w" onclick="saveM(1)">Mark as no milk</button>');
   h+='</div><div class="card"><b>Recent entries</b>';
-  var L=S.e.filter(function(x){return x.cid===ec}).sort(function(a,b){return a.date<b.date?1:-1}).slice(0,40);
+  var L=S.e.filter(function(x){return x.cid===ec&&x.date>settledTill(c)}).sort(function(a,b){return a.date<b.date?1:-1}).slice(0,40);
   if(!L.length)h+='<div class="mu">No entries yet</div>';
   L.forEach(function(x){h+='<div class="li"><div><b>'+dsp(x.date)+'</b><div class="mu">M '+x.m+' · E '+x.e+' · '+(x.m+x.e)+' L · '+rs(amt(x))+'</div></div><div><button class="g sm" onclick="editE(\''+x.id+'\')">Edit</button><button class="d" onclick="del(\'e\',\''+x.id+'\',this)">Delete</button></div></div>'});
  }else{
@@ -131,12 +168,12 @@ function vEntry(){
  }
  return h+'</div>'
 }
-function saveM(){
+function saveM(z){
  var c=cust(ec),a=$('d1').value,b=$('d2').value,t=today();
  if(!a||!b)return toast('Select dates');if(b<a)return toast('To date is before From date');
- if(b>t)return toast('Future dates are not allowed');if(a<c.start)return toast('Date is before start date');
+ if(b>t)return toast('Future dates are not allowed');if(a<c.start)return toast('Date is before start date');if(a<=settledTill(c))return toast('Already settled till '+dsp(settledTill(c))+'. Remove the settled date from that payment to reopen.');
  var m=Math.max(0,parseFloat($('qm').value)||0),e=Math.max(0,parseFloat($('qe').value)||0);
- if(!m&&!e)return toast('Enter litres');
+ if(z){m=0;e=0}else if(!m&&!e)return toast('Enter litres, or tap Mark as no milk');
  var dups=[],ds=[];for(var d=P(a);fmt(d)<=b;d.setDate(d.getDate()+1)){ds.push(fmt(d));if(S.e.some(function(z){return z.cid===ec&&z.date===fmt(d)&&z.id!==ed}))dups.push(dm(fmt(d)))}
  var sig=ec+a+b+m+'/'+e+ed;
  if(dups.length&&pend!==sig){pend=sig;return warn('Entry already exists for '+dups.slice(0,5).join(', ')+(dups.length>5?' +'+(dups.length-5)+' more':'')+'. Tap again to overwrite.')}
@@ -144,7 +181,7 @@ function saveM(){
  else ds.forEach(function(d){setE(ec,d,m,e)});
  pend='';save();toast('Entry saved ✔');render()
 }
-function editE(id){var x=S.e.find(function(z){return z.id===id});ed=id;pend='';render();$('d1').value=$('d2').value=x.date;$('qm').value=x.m;$('qe').value=x.e;window.scrollTo(0,0)}
+function editE(id){var x=S.e.find(function(z){return z.id===id});ed=id;pend='';render();$('d1').value=$('d2').value=x.date;$('qm').value=x.m;$('qe').value=x.e;syncDates();window.scrollTo(0,0)}
 function saveP(){
  var c=cust(ec),d=$('pd').value,a=parseFloat($('pa').value),tl=$('pt').value;
  if(!d||d>today()||d<c.start)return toast('Select a valid date');if(!(a>0))return toast('Enter amount');
@@ -153,7 +190,7 @@ function saveP(){
  else S.p.push({id:uid(),cid:ec,date:d,amt:a,till:tl,note:$('pn').value});
  save();toast('Payment saved ✔');render()
 }
-function editP(id){var x=S.p.find(function(z){return z.id===id});ed=id;render();$('pd').value=x.date;$('pa').value=x.amt;$('pt').value=x.till||'';$('pn').value=x.note||'';window.scrollTo(0,0)}
+function editP(id){var x=S.p.find(function(z){return z.id===id});ed=id;render();$('pd').value=x.date;$('pa').value=x.amt;$('pt').value=x.till||'';$('pn').value=x.note||'';syncDates();window.scrollTo(0,0)}
 function del(k,id,b){
  if(b.dataset.s!=='1'){b.dataset.s='1';b.textContent='Sure?';setTimeout(function(){b.dataset.s='';b.textContent='Delete'},3000);return}
  if(k==='e')S.e=S.e.filter(function(x){return x.id!==id});else if(k==='p')S.p=S.p.filter(function(x){return x.id!==id});
@@ -171,7 +208,7 @@ function vBill(){
  h+='<div class="card"><b>'+esc(c.name)+'</b> <span class="mu">· ₹'+c.rate+'/L · '+dsp(b.eff)+' – '+dsp(bt)+' ('+b.days+' days)'+(bt>today()?' <span class="tag">running</span>':'')+'</span>'+
  '<div class="li"><span>Previous balance</span><b>'+rs(b.prev)+'</b></div><div class="li"><span>M '+b.tm+' L + E '+b.te+' L = <b>'+rd(b.tm+b.te)+' L</b></span><b>'+rs(b.a)+'</b></div><div class="li"><span>Received</span><b class="gr">− '+rs(b.paid)+'</b></div>'+
  '<div class="li"><span><b>Balance due</b></span><span class="big '+(b.net>0?'rd':'gr')+'">'+rs(b.net)+'</span></div>'+
- '<div class="row"><button class="w" onclick="shareB()">📲 Send on WhatsApp</button><button class="g w" onclick="copyB()">Copy</button></div></div>';
+ '<div class="row"><button class="w" onclick="shareB()">📲 Send on WhatsApp</button><button class="g w" onclick="copyB()">Copy</button></div><button class="g w" onclick="showHist()">📜 Customer history</button></div>';
  var rows='';b.inE.forEach(function(x){[['M',x.m],['E',x.e]].forEach(function(s){if(s[1]>0)rows+='<tr><td>'+dm(x.date)+'</td><td>'+s[0]+'</td><td>'+s[1]+' × '+x.rate+'</td><td>'+rd(s[1]*x.rate)+'</td></tr>'})});
  h+='<div class="card sc"><b>Daily details</b><table><tr><th>Date</th><th>M/E</th><th>Qty × Rate</th><th>Amount</th></tr>'+(rows||'<tr><td colspan="4" class="mu">No entries in this period</td></tr>')+'</table>'+
  (b.inP.length?'<div style="margin-top:10px"><b>Payments</b>'+b.inP.map(function(x){return '<div class="li"><span>'+dsp(x.date)+(x.till?' · settled till '+dm(x.till):'')+(x.note?' · '+esc(x.note):'')+'</span><b>'+rs(x.amt)+'</b></div>'}).join('')+'</div>':'')+'</div>';
