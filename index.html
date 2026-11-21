@@ -37,11 +37,12 @@ nav button{flex:1;background:none;color:var(--mu);border-radius:0;padding:9px 0;
 <header><span id="lg"></span><div><b>Dairy Flow</b><i>Smart milk accounts</i></div><small id="dt"></small></header>
 <main id="m"></main>
 <nav id="nv"></nav><div id="t"></div>
+<div id="lk" style="display:none;position:fixed;inset:0;z-index:50;background:linear-gradient(135deg,#0b2545,#1b7f86);color:#fff;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center"><div id="lgo" style="width:84px;height:84px"></div><b style="font-size:22px">Dairy Flow</b><div id="lm">Enter PIN</div><input id="lp" type="password" inputmode="numeric" maxlength="4" style="max-width:200px;text-align:center;font-size:24px;letter-spacing:8px" oninput="if(this.value.length>=4)tryPin()"></div>
 <script>
 var LOGO='<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0b2545"/><stop offset="1" stop-color="#1b8a8f"/></linearGradient></defs><rect width="100" height="100" rx="24" fill="url(#g)"/><path d="M50 15C50 15 27 42 27 58a23 23 0 0 0 46 0C73 42 50 15 50 15Z" fill="#fff8ec"/><path d="M31 60q6.5-8 13 0t13 0t13 0" stroke="#f4a300" stroke-width="5.5" stroke-linecap="round" fill="none"/><circle cx="41" cy="44" r="3.2" fill="#fff" opacity=".8"/></svg>';
 var S={c:[],e:[],p:[]},hc='',rm=0,predate='',tab='h',hd='',et='m',ec='',ed=null,bc='',bi=0,bf='',bt='',pend='',KEY='dairyflow_v1';
 var MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-try{var r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(x){}
+try{var r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(x){}S.i=S.i||[];S.x=S.x||[];
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(x){}}
 var $=function(i){return document.getElementById(i)};
 var uid=function(){return Math.random().toString(36).slice(2,9)};
@@ -56,7 +57,7 @@ var rs=function(n){return '₹'+(Math.round(n*100)/100).toLocaleString('en-IN')}
 var rd=function(n){return Math.round(n*100)/100};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
 var cust=function(id){return S.c.find(function(c){return c.id===id})};
-var amt=function(e){return (e.m+e.e)*e.rate};
+var amt=function(e){return (e.m+e.e)*e.rate};var xA=function(x){return x.qty*x.price};function rateFor(c,d){var q=(c.rates||[]).slice().sort(function(a,b){return a.from<b.from?-1:1});if(!q.length)return c.rate;var r=q[0].rate;q.forEach(function(x){if(x.from<=d)r=x.rate});return r}
 var sum=function(a,f){return a.reduce(function(t,x){return t+f(x)},0)};
 function toast(s){var t=$('t');t.textContent=s;t.className='s';setTimeout(function(){t.className=''},2000)}
 function warn(s){$('wn').innerHTML='⚠️ '+s}
@@ -74,11 +75,11 @@ function bill(c,f,t){
  var key=function(p){return p.till||p.date};
  var inE=es.filter(function(x){return x.date>=eff&&x.date<=t}).sort(function(a,b){return a.date<b.date?-1:1});
  var inP=ps.filter(function(p){return key(p)>=eff&&key(p)<=t}).sort(function(a,b){return key(a)<key(b)?-1:1});
- var prev=sum(es.filter(function(x){return x.date<eff}),amt)-sum(ps.filter(function(p){return key(p)<eff}),function(p){return p.amt});
+ var xs=S.x.filter(function(x){return x.cid===c.id}),inX=xs.filter(function(x){return x.date>=eff&&x.date<=t}),ia=sum(inX,xA),prev=sum(es.filter(function(x){return x.date<eff}),amt)+sum(xs.filter(function(x){return x.date<eff}),xA)-sum(ps.filter(function(p){return key(p)<eff}),function(p){return p.amt});
  var tm=sum(inE,function(x){return x.m}),te=sum(inE,function(x){return x.e}),a=sum(inE,amt),paid=sum(inP,function(p){return p.amt});
- return{eff:eff,note:note,inE:inE,inP:inP,prev:prev,days:Math.round((P(t)-P(eff))/864e5)+1,tm:tm,te:te,a:a,paid:paid,net:prev+a-paid}
+ return{eff:eff,note:note,inE:inE,inP:inP,prev:prev,days:Math.round((P(t)-P(eff))/864e5)+1,tm:tm,te:te,a:a,inX:inX,ia:ia,paid:paid,net:prev+a+ia-paid}
 }
-function totalDue(c){return sum(S.e.filter(function(x){return x.cid===c.id}),amt)-sum(S.p.filter(function(x){return x.cid===c.id}),function(x){return x.amt})}
+function totalDue(c){return sum(S.e.filter(function(x){return x.cid===c.id}),amt)+sum(S.x.filter(function(x){return x.cid===c.id}),xA)-sum(S.p.filter(function(x){return x.cid===c.id}),function(x){return x.amt})}
 function opts(sel){return S.c.map(function(c){return '<option value="'+c.id+'"'+(c.id===sel?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')}
 function empty(){return '<div class="card" style="text-align:center">First add a customer in the <b>Customers</b> tab.<br><br><button onclick="go(\'c\')">+ Add customer</button></div>'}
 function go(t){tab=t;ed=null;pend='';render()}
@@ -103,26 +104,53 @@ function vDash(){
  var t=new Date(),cur=t.getFullYear()*12+t.getMonth();if(!rm||rm>cur)rm=cur;
  var y=Math.floor(rm/12),m=rm%12,a=fmt(new Date(y,m,1)),b=fmt(new Date(y,m+1,0)),td=today();
  var es=S.e.filter(function(x){return x.date>=a&&x.date<=b}),ps=S.p.filter(function(x){return x.date>=a&&x.date<=b});
- var lit=sum(es,function(x){return x.m+x.e}),sales=sum(es,amt),rec=sum(ps,function(p){return p.amt}),due=sum(S.c,totalDue),tl=sum(S.e.filter(function(x){return x.date===td}),function(x){return x.m+x.e}),miss=sum(S.c,function(c){return missing(c).length});
+ var lit=sum(es,function(x){return x.m+x.e}),sales=sum(es,amt)+sum(S.x.filter(function(x){return x.date>=a&&x.date<=b}),xA),rec=sum(ps,function(p){return p.amt}),due=sum(S.c,totalDue),tl=sum(S.e.filter(function(x){return x.date===td}),function(x){return x.m+x.e}),miss=sum(S.c,function(c){return missing(c).length});
  var n=dim(y,m),day=[];for(var i=0;i<n;i++)day.push(0);es.forEach(function(x){day[+x.date.slice(8)-1]+=x.m+x.e});var mx=Math.max.apply(null,day.concat([1]));
  var h='<div class="card"><div class="row"><button class="g sm" onclick="rm--;render()">◀</button><b style="text-align:center">'+MO[m]+' '+y+' report</b><button class="g sm" '+(rm>=cur?'disabled style="opacity:.4"':'')+' onclick="rm++;render()">▶</button></div></div>';
  h+='<div class="grid">'+[[rd(tl)+' L','Today'],[rd(lit)+' L','Milk this month'],[rs(sales),'Sales this month'],[rs(rec),'Received this month'],[rs(due),'Total pending'],[miss,'Days not entered']].map(function(x){return '<div class="stat"><b>'+x[0]+'</b><span>'+x[1]+'</span></div>'}).join('')+'</div>';
  h+='<div class="card" style="margin-top:12px"><b>Daily milk (L)</b><div class="bars">'+day.map(function(v,i){return '<i title="'+(i+1)+'" style="height:'+Math.max(3,v/mx*100)+'%"></i>'}).join('')+'</div><div class="mu" style="display:flex;justify-content:space-between"><span>1</span><span>'+n+'</span></div></div>';
- var rows=S.c.map(function(c){var e2=es.filter(function(x){return x.cid===c.id});return{n:c.name,l:sum(e2,function(x){return x.m+x.e}),a:sum(e2,amt),d:totalDue(c)}}).sort(function(p,q){return q.d-p.d});
+ var rows=S.c.map(function(c){var e2=es.filter(function(x){return x.cid===c.id});return{n:c.name,l:sum(e2,function(x){return x.m+x.e}),a:sum(e2,amt)+sum(S.x.filter(function(x){return x.cid===c.id&&x.date>=a&&x.date<=b}),xA),d:totalDue(c)}}).sort(function(p,q){return q.d-p.d});
  h+='<div class="card sc"><b>Customer report</b><table><tr><th>Customer</th><th style="text-align:right">Litres</th><th>Amount</th><th>Pending</th></tr>'+rows.map(function(r){return '<tr><td>'+esc(r.n)+'</td><td style="text-align:right">'+rd(r.l)+'</td><td>'+rd(r.a)+'</td><td class="'+(r.d>0?'rd':'gr')+'">'+rd(r.d)+'</td></tr>'}).join('')+'</table></div>';
  return h}
 function vHist(){
  if(!S.c.length)return empty();if(!cust(hc))hc=S.c[0].id;var c=cust(hc),T=settledTill(c);
  var h='<div class="card"><b>Customer history</b><label>Customer</label><select onchange="hc=this.value;render()">'+opts(hc)+'</select><div class="mu" style="margin-top:6px">Settled periods are saved here and no longer show in recent entries.</div></div>';
- var es=S.e.filter(function(x){return x.cid===c.id&&T&&x.date<=T}),ps=S.p.filter(function(p){return p.cid===c.id});
- if(!es.length)return h+'<div class="card mu">No settled period yet. Add a payment with "Account settled up to" and that period will move here.</div>';
- var ids={};es.forEach(function(x){ids[idxOf(c,x.date)]=1});
+ var xs=S.x.filter(function(x){return x.cid===c.id&&T&&x.date<=T}),es=S.e.filter(function(x){return x.cid===c.id&&T&&x.date<=T}),ps=S.p.filter(function(p){return p.cid===c.id});
+ if(!es.length&&!xs.length)return h+'<div class="card mu">No settled period yet. Add a payment with "Account settled up to" and that period will move here.</div>';
+ var ids={};es.forEach(function(x){ids[idxOf(c,x.date)]=1});xs.forEach(function(x){ids[idxOf(c,x.date)]=1});
  Object.keys(ids).map(Number).sort(function(a,b){return b-a}).forEach(function(i){
   var y=Math.floor(i/12),m=i%12,s=fmt(cs(c,y,m)),e=fmt(ce(c,y,m));if(s<c.start)s=c.start;if(e>T)e=T;
-  var inE=es.filter(function(x){return x.date>=s&&x.date<=e}).sort(function(a,b){return a.date<b.date?-1:1}),inP=ps.filter(function(p){var k=p.till||p.date;return k>=s&&k<=e}),a=sum(inE,amt),r=sum(inP,function(p){return p.amt}),rows='';
+  var inE=es.filter(function(x){return x.date>=s&&x.date<=e}).sort(function(a,b){return a.date<b.date?-1:1}),inP=ps.filter(function(p){var k=p.till||p.date;return k>=s&&k<=e}),inX=xs.filter(function(x){return x.date>=s&&x.date<=e}),a=sum(inE,amt)+sum(inX,xA),r=sum(inP,function(p){return p.amt}),rows='';
   inE.forEach(function(x){[['M',x.m],['E',x.e]].forEach(function(z){if(z[1]>0)rows+='<tr><td>'+dm(x.date)+'</td><td>'+z[0]+'</td><td>'+z[1]+' × '+x.rate+'</td><td>'+rd(z[1]*x.rate)+'</td></tr>'})});
-  h+='<details class="card"><summary><b>'+dsp(s)+' – '+dsp(e)+'</b> <span class="tag">'+(r>=a?'✔ paid':'balance '+rs(a-r))+'</span><div class="mu">'+rd(sum(inE,function(x){return x.m+x.e}))+' L · Bill '+rs(a)+' · Received '+rs(r)+'</div></summary><div class="sc"><table><tr><th>Date</th><th>M/E</th><th>Qty × Rate</th><th>Amount</th></tr>'+rows+'</table></div>'+inP.map(function(p){return '<div class="li"><span class="mu">Paid '+dsp(p.date)+(p.till?' · settled till '+dm(p.till):'')+'</span><b>'+rs(p.amt)+'</b></div>'}).join('')+'</details>'});
+  inX.forEach(function(x){rows+='<tr><td>'+dm(x.date)+'</td><td>'+esc(x.name)+'</td><td>'+x.qty+' × '+x.price+'</td><td>'+rd(x.qty*x.price)+'</td></tr>'});h+='<details class="card"><summary><b>'+dsp(s)+' – '+dsp(e)+'</b> <span class="tag">'+(r>=a?'✔ paid':'balance '+rs(a-r))+'</span><div class="mu">'+rd(sum(inE,function(x){return x.m+x.e}))+' L · Bill '+rs(a)+' · Received '+rs(r)+'</div></summary><div class="sc"><table><tr><th>Date</th><th>M/E</th><th>Qty × Rate</th><th>Amount</th></tr>'+rows+'</table></div>'+inP.map(function(p){return '<div class="li"><span class="mu">Paid '+dsp(p.date)+(p.till?' · settled till '+dm(p.till):'')+'</span><b>'+rs(p.amt)+'</b></div>'}).join('')+'</details>'});
  return h}
+var hid=0,PK='dairyflow_pin';
+function getPin(){try{return localStorage.getItem(PK)||''}catch(x){return ''}}
+function hp(s){var h=7;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))%1000000007;return String(h)}
+function lock(){if(!getPin())return;$('lk').style.display='flex';$('lp').value='';$('lm').textContent='Enter PIN'}
+function tryPin(){if(hp($('lp').value)===getPin()){$('lk').style.display='none'}else{$('lm').textContent='Wrong PIN';$('lp').value=''}}
+function setPin(v){try{if(v===1){var p=$('np').value;if(!/^\d{4}$/.test(p))return toast('Enter 4 digits');localStorage.setItem(PK,hp(p));toast('PIN set ✔')}else{localStorage.removeItem(PK);toast('PIN removed')}}catch(x){toast('Could not save PIN')}render()}
+function lockCard(){var on=!!getPin();return '<div class="card"><b>🔒 App lock</b><div class="mu">'+(on?'PIN lock is ON. The app asks for the PIN when opened, or when it was left for 30 seconds. Remember your PIN.':'Set a 4-digit PIN so nobody else can open your accounts.')+'</div>'+(on?'<button class="g w" onclick="setPin(0)">Remove PIN</button>':'<label>New PIN (4 digits)</label><input id="np" type="password" inputmode="numeric" maxlength="4"><button class="w" onclick="setPin(1)">Set PIN</button>')+'</div>'}
+function itemsCard(){return '<div class="card"><b>🧈 Extra items</b><div class="mu">Ghee, paneer, dahi etc. Add them here, then sell from Entry → Items.</div>'+S.i.map(function(i){return '<div class="li"><span>'+esc(i.name)+' <span class="mu">₹'+i.price+' / '+esc(i.unit)+'</span></span><button class="d" data-i="'+i.id+'" onclick="delI(this)">Delete</button></div>'}).join('')+'<div class="row"><div><label>Item name</label><input id="in1"></div><div><label>Unit</label><input id="iu" placeholder="kg / pc"></div><div><label>Price ₹</label><input id="ip" inputmode="decimal"></div></div><button class="w" onclick="addI()">+ Add item</button></div>'}
+function delI(b){del('i',b.dataset.i,b)}
+function delX(b){del('x',b.dataset.i,b)}
+function addI(){var n=$('in1').value.trim(),u=$('iu').value.trim()||'pc',p=parseFloat($('ip').value);if(!n)return toast('Enter item name');if(!(p>=0))return toast('Enter price');S.i.push({id:uid(),name:n,unit:u,price:p});save();toast('Item added ✔');render()}
+function xp(){var i=S.i.find(function(z){return z.id===$('xi').value});if(i)$('xr').value=i.price}
+function xForm(c,h,t,dv){
+ if(!S.i.length)return h+'<div class="mu" style="margin-top:8px">First add items (ghee, paneer, dahi…) in the Customers tab.</div></div>';
+ var it=S.i.map(function(i){return '<option value="'+i.id+'">'+esc(i.name)+' (₹'+i.price+'/'+esc(i.unit)+')</option>'}).join('');
+ h+='<label>Date</label><input type="date" id="xd" min="'+c.start+'" max="'+t+'" value="'+dv+'"><label>Item</label><select id="xi" onchange="xp()">'+it+'</select><div class="row"><div><label>Quantity</label><input id="xq" inputmode="decimal"></div><div><label>Price per unit (₹)</label><input id="xr" inputmode="decimal" value="'+S.i[0].price+'"></div></div><button class="w" onclick="saveX()">'+(ed?'Update item':'Add item')+'</button></div><div class="card"><b>Recent items</b>';
+ var L=S.x.filter(function(x){return x.cid===c.id&&x.date>settledTill(c)}).sort(function(a,b){return a.date<b.date?1:-1}).slice(0,40);
+ if(!L.length)h+='<div class="mu">No items yet</div>';
+ L.forEach(function(x){h+='<div class="li"><div><b>'+esc(x.name)+'</b><div class="mu">'+dsp(x.date)+' · '+x.qty+' × '+x.price+' = '+rs(x.qty*x.price)+'</div></div><div><button class="g sm" data-i="'+x.id+'" onclick="editX(this.dataset.i)">Edit</button><button class="d" data-i="'+x.id+'" onclick="delX(this)">Delete</button></div></div>'});
+ return h+'</div>'}
+function saveX(){
+ var c=cust(ec),d=$('xd').value,q=parseFloat($('xq').value),p=parseFloat($('xr').value),it=S.i.find(function(z){return z.id===$('xi').value});
+ if(!d||d>today()||d<c.start)return toast('Select a valid date');if(d<=settledTill(c))return toast('Already settled till '+dsp(settledTill(c))+'.');
+ if(!(q>0)||!(p>=0)||!it)return toast('Enter quantity and price');
+ if(ed){var x=S.x.find(function(z){return z.id===ed});x.date=d;x.qty=q;x.price=p;x.name=it.name;ed=null}else S.x.push({id:uid(),cid:ec,date:d,name:it.name,qty:q,price:p});
+ save();toast('Item saved ✔');render()}
+function editX(id){var x=S.x.find(function(z){return z.id===id});ed=id;render();$('xd').value=x.date;var it=S.i.find(function(z){return z.name===x.name});if(it)$('xi').value=it.id;$('xq').value=x.qty;$('xr').value=x.price;syncDates();window.scrollTo(0,0)}
 /* HOME */
 function vHome(){
  var t=today();if(!hd||hd>t)hd=t;
@@ -146,13 +174,13 @@ function saveAll(){
  if(ch.length&&pend!==sig){pend=sig;return warn('Entry already exists for '+dsp(hd)+' ('+esc(ch.slice(0,4).join(', '))+(ch.length>4?' +more':'')+'). Tap Save all again to overwrite.')}
  list.forEach(function(l){setE(l[0],hd,l[1],l[2])});pend='';save();toast(list.length+' entries saved ✔');render()
 }
-function setE(cid,d,m,e){var x=S.e.find(function(z){return z.cid===cid&&z.date===d});if(x){x.m=m;x.e=e}else S.e.push({id:uid(),cid:cid,date:d,m:m,e:e,rate:cust(cid).rate})}
+function setE(cid,d,m,e){var x=S.e.find(function(z){return z.cid===cid&&z.date===d});if(x){x.m=m;x.e=e}else S.e.push({id:uid(),cid:cid,date:d,m:m,e:e,rate:rateFor(cust(cid),d)})}
 /* ENTRY */
 function vEntry(){
  if(!S.c.length)return empty();if(!cust(ec))ec=S.c[0].id;var dv0=predate||today();predate='';
- var c=cust(ec),t=today(),h='<div class="seg"><button class="'+(et==='m'?'on':'')+'" onclick="et=\'m\';ed=null;render()">🥛 Milk</button><button class="'+(et==='p'?'on':'')+'" onclick="et=\'p\';ed=null;render()">💰 Payment</button></div>';
+ var c=cust(ec),t=today(),h='<div class="seg"><button class="'+(et==='m'?'on':'')+'" onclick="et=\'m\';ed=null;render()">🥛 Milk</button><button class="'+(et==='x'?'on':'')+'" onclick="et=\'x\';ed=null;render()">🧈 Items</button><button class="'+(et==='p'?'on':'')+'" onclick="et=\'p\';ed=null;render()">💰 Payment</button></div>';
  h+='<div class="card"><label>Customer</label><select onchange="ec=this.value;ed=null;pend=\'\';render()">'+opts(ec)+'</select>';
- if(et==='m'){
+ if(et==='x')return xForm(c,h,t,dv0);if(et==='m'){
   h+='<div class="row"><div><label>From date</label><input type="date" id="d1" min="'+c.start+'" max="'+t+'" value="'+dv0+'"></div><div><label>To date</label><input type="date" id="d2" min="'+c.start+'" max="'+t+'" value="'+dv0+'"></div></div>'+
   '<div class="row"><div><label>Morning M (litres)</label><input id="qm" inputmode="decimal" value="'+(c.dm||'')+'"></div><div><label>Evening E (litres)</label><input id="qe" inputmode="decimal" value="'+(c.de||'')+'"></div></div>'+
   '<div class="mu" style="margin-top:6px">For one day keep From and To the same. Pick a range to fill many days at once.</div><div id="wn" class="wn"></div><button class="w" onclick="saveM()">'+(ed?'Update entry':'Save entry')+'</button>'+(ed?'':'<button class="g w" onclick="saveM(1)">Mark as no milk</button>');
@@ -193,8 +221,8 @@ function saveP(){
 function editP(id){var x=S.p.find(function(z){return z.id===id});ed=id;render();$('pd').value=x.date;$('pa').value=x.amt;$('pt').value=x.till||'';$('pn').value=x.note||'';syncDates();window.scrollTo(0,0)}
 function del(k,id,b){
  if(b.dataset.s!=='1'){b.dataset.s='1';b.textContent='Sure?';setTimeout(function(){b.dataset.s='';b.textContent='Delete'},3000);return}
- if(k==='e')S.e=S.e.filter(function(x){return x.id!==id});else if(k==='p')S.p=S.p.filter(function(x){return x.id!==id});
- else{S.c=S.c.filter(function(x){return x.id!==id});S.e=S.e.filter(function(x){return x.cid!==id});S.p=S.p.filter(function(x){return x.cid!==id})}
+ if(k==='x')S.x=S.x.filter(function(x){return x.id!==id});else if(k==='i')S.i=S.i.filter(function(x){return x.id!==id});else if(k==='e')S.e=S.e.filter(function(x){return x.id!==id});else if(k==='p')S.p=S.p.filter(function(x){return x.id!==id});
+ else{S.c=S.c.filter(function(x){return x.id!==id});S.x=S.x.filter(function(x){return x.cid!==id});S.e=S.e.filter(function(x){return x.cid!==id});S.p=S.p.filter(function(x){return x.cid!==id})}
  save();toast('Deleted');render()
 }
 /* BILL */
@@ -206,38 +234,38 @@ function vBill(){
  '<div class="row" style="margin-top:10px"><button class="g" '+(bi<=si?'disabled style="opacity:.4"':'')+' onclick="setCycle(cust(bc),bi-1);render()">◀ Previous cycle</button><button class="g" '+(bi>=curIdx(c)?'disabled style="opacity:.4"':'')+' onclick="setCycle(cust(bc),bi+1);render()">Next cycle ▶</button></div></div>';
  if(b.note)h+='<div class="wn" style="margin:0 0 12px">⚠️ '+esc(b.note)+'</div>';
  h+='<div class="card"><b>'+esc(c.name)+'</b> <span class="mu">· ₹'+c.rate+'/L · '+dsp(b.eff)+' – '+dsp(bt)+' ('+b.days+' days)'+(bt>today()?' <span class="tag">running</span>':'')+'</span>'+
- '<div class="li"><span>Previous balance</span><b>'+rs(b.prev)+'</b></div><div class="li"><span>M '+b.tm+' L + E '+b.te+' L = <b>'+rd(b.tm+b.te)+' L</b></span><b>'+rs(b.a)+'</b></div><div class="li"><span>Received</span><b class="gr">− '+rs(b.paid)+'</b></div>'+
+ '<div class="li"><span>Previous balance</span><b>'+rs(b.prev)+'</b></div><div class="li"><span>M '+b.tm+' L + E '+b.te+' L = <b>'+rd(b.tm+b.te)+' L</b></span><b>'+rs(b.a)+'</b></div>'+(b.ia?'<div class="li"><span>Items (ghee, paneer…)</span><b>'+rs(b.ia)+'</b></div>':'')+'<div class="li"><span>Received</span><b class="gr">− '+rs(b.paid)+'</b></div>'+
  '<div class="li"><span><b>Balance due</b></span><span class="big '+(b.net>0?'rd':'gr')+'">'+rs(b.net)+'</span></div>'+
  '<div class="row"><button class="w" onclick="shareB()">📲 Send on WhatsApp</button><button class="g w" onclick="copyB()">Copy</button></div><button class="g w" onclick="showHist()">📜 Customer history</button></div>';
  var rows='';b.inE.forEach(function(x){[['M',x.m],['E',x.e]].forEach(function(s){if(s[1]>0)rows+='<tr><td>'+dm(x.date)+'</td><td>'+s[0]+'</td><td>'+s[1]+' × '+x.rate+'</td><td>'+rd(s[1]*x.rate)+'</td></tr>'})});
- h+='<div class="card sc"><b>Daily details</b><table><tr><th>Date</th><th>M/E</th><th>Qty × Rate</th><th>Amount</th></tr>'+(rows||'<tr><td colspan="4" class="mu">No entries in this period</td></tr>')+'</table>'+
+ b.inX.forEach(function(x){rows+='<tr><td>'+dm(x.date)+'</td><td>'+esc(x.name)+'</td><td>'+x.qty+' × '+x.price+'</td><td>'+rd(x.qty*x.price)+'</td></tr>'});h+='<div class="card sc"><b>Daily details</b><table><tr><th>Date</th><th>M/E</th><th>Qty × Rate</th><th>Amount</th></tr>'+(rows||'<tr><td colspan="4" class="mu">No entries in this period</td></tr>')+'</table>'+
  (b.inP.length?'<div style="margin-top:10px"><b>Payments</b>'+b.inP.map(function(x){return '<div class="li"><span>'+dsp(x.date)+(x.till?' · settled till '+dm(x.till):'')+(x.note?' · '+esc(x.note):'')+'</span><b>'+rs(x.amt)+'</b></div>'}).join('')+'</div>':'')+'</div>';
  return h
 }
 function txt(){
  var c=cust(bc),b=bill(c,bf,bt);
- return '🥛 *Dairy Flow – Milk Bill*\nName: '+c.name+'\nPeriod: '+dsp(b.eff)+' to '+dsp(bt)+' ('+b.days+' days)\nMorning: '+b.tm+' L | Evening: '+b.te+' L\nTotal: '+rd(b.tm+b.te)+' L @ ₹'+c.rate+'/L\nBill: '+rs(b.a)+'\nPrevious balance: '+rs(b.prev)+'\nReceived: '+rs(b.paid)+'\n*Balance due: '+rs(b.net)+'*\n'+(b.note?b.note+'\n':'')+'Thank you 🙏'
+ return '🥛 *Dairy Flow – Milk Bill*\nName: '+c.name+'\nPeriod: '+dsp(b.eff)+' to '+dsp(bt)+' ('+b.days+' days)\nMorning: '+b.tm+' L | Evening: '+b.te+' L\nTotal: '+rd(b.tm+b.te)+' L @ ₹'+c.rate+'/L\nBill: '+rs(b.a)+(b.ia?'\nItems: '+rs(b.ia):'')+'\nPrevious balance: '+rs(b.prev)+'\nReceived: '+rs(b.paid)+'\n*Balance due: '+rs(b.net)+'*\n'+(b.note?b.note+'\n':'')+'Thank you 🙏'
 }
 function shareB(){var c=cust(bc),p=(c.phone||'').replace(/\D/g,'');if(p.length===10)p='91'+p;window.open('https://wa.me/'+p+'?text='+encodeURIComponent(txt()),'_blank')}
 function copyB(){try{navigator.clipboard.writeText(txt()).then(function(){toast('Bill copied')},function(){toast('Could not copy')})}catch(x){toast('Could not copy')}}
 /* CUSTOMERS */
 function vCust(){
- var c=ed&&cust(ed)||{},h='<div class="card"><b>'+(c.id?'Edit customer':'New customer')+'</b><label>Name</label><input id="cn" value="'+esc(c.name)+'"><div class="row"><div><label>Mobile</label><input id="cp" inputmode="tel" value="'+esc(c.phone)+'"></div><div><label>Rate ₹ per litre</label><input id="cr" inputmode="decimal" value="'+(c.rate||'')+'"></div></div>'+
+ var c=ed&&cust(ed)||{},h='<div class="card"><b>'+(c.id?'Edit customer':'New customer')+'</b><label>Name</label><input id="cn" value="'+esc(c.name)+'"><div class="row"><div><label>Mobile</label><input id="cp" inputmode="tel" value="'+esc(c.phone)+'"></div><div><label>Rate ₹ per litre</label><input id="cr" inputmode="decimal" value="'+(c.rate||'')+'"></div></div>'+(c.id?'<label>If you change the rate, apply it from (date)</label><input type="date" id="cf" value="'+today()+'"><div class="mu">'+((c.rates&&c.rates.length>1)?'Rate history: '+c.rates.map(function(z){return dm(z.from)+' → ₹'+z.rate}).join(' · '):'Old entries keep their old rate; the new rate applies from this date.')+'</div>':'')+
  '<label>Start date (billing cycle starts on this day every month)</label><input type="date" id="cd" value="'+(c.start||today())+'"><div class="row"><div><label>Default Morning M (L)</label><input id="cm" inputmode="decimal" value="'+(c.dm||'')+'"></div><div><label>Default Evening E (L)</label><input id="ce" inputmode="decimal" value="'+(c.de||'')+'"></div></div>'+
  '<button class="w" onclick="saveC()">'+(c.id?'Update':'+ Add customer')+'</button>'+(c.id?'<button class="g w" onclick="ed=null;render()">Cancel</button>':'')+'</div><div class="card"><b>Customers ('+S.c.length+')</b>';
  S.c.forEach(function(x){var d=totalDue(x);h+='<div class="li"><div><b>'+esc(x.name)+'</b><div class="mu">Start '+dsp(x.start)+' · ₹'+x.rate+'/L · cycle from day '+P(x.start).getDate()+'</div></div><div style="text-align:right"><b class="'+(d>0?'rd':'gr')+'">'+rs(d)+'</b><br><button class="g sm" onclick="ed=\''+x.id+'\';render()">Edit</button><button class="d" onclick="del(\'c\',\''+x.id+'\',this)">Delete</button></div></div>'});
- h+='</div><div class="card"><b>Backup</b><div class="mu">Data is saved in this browser. Copy a backup now and then and keep it safe.</div><div class="row"><button class="g w" onclick="bk()">Copy backup</button><button class="g w" onclick="rs2()">Restore</button></div><textarea id="bt" rows="3" placeholder="Paste a backup here to restore" style="margin-top:8px"></textarea></div>';
+ h+='</div>'+itemsCard()+lockCard()+'<div class="card"><b>Backup</b><div class="mu">Data is saved in this browser. Copy a backup now and then and keep it safe.</div><div class="row"><button class="g w" onclick="bk()">Copy backup</button><button class="g w" onclick="rs2()">Restore</button></div><textarea id="bt" rows="3" placeholder="Paste a backup here to restore" style="margin-top:8px"></textarea></div>';
  return h
 }
 function saveC(){
  var n=$('cn').value.trim(),r=parseFloat($('cr').value),d=$('cd').value;
  if(!n)return toast('Enter name');if(!(r>0))return toast('Enter rate');if(!d)return toast('Select start date');
  var o={name:n,phone:$('cp').value.trim(),rate:r,start:d,dm:parseFloat($('cm').value)||0,de:parseFloat($('ce').value)||0};
- if(ed&&cust(ed))Object.assign(cust(ed),o);else S.c.push(Object.assign({id:uid()},o));
+ if(ed&&cust(ed)){var c0=cust(ed),old=c0.rate,ef=($('cf')&&$('cf').value)||today();if(r!==old&&ef<=settledTill(c0))return toast('Rate cannot change inside a settled period');delete o.rate;Object.assign(c0,o);if(r!==old){if(!c0.rates)c0.rates=[{from:c0.start,rate:old}];c0.rates=c0.rates.filter(function(z){return z.from!==ef});c0.rates.push({from:ef,rate:r});c0.rate=rateFor(c0,today());S.e.forEach(function(x){if(x.cid===c0.id&&x.date>=ef)x.rate=rateFor(c0,x.date)})}}else S.c.push(Object.assign({id:uid(),rates:[{from:d,rate:r}]},o));
  ed=null;save();toast('Saved ✔');render()
 }
 function bk(){var j=JSON.stringify(S);$('bt').value=j;try{navigator.clipboard.writeText(j).then(function(){toast('Backup copied')})}catch(x){toast('Copy the text manually')}}
-function rs2(){try{var d=JSON.parse($('bt').value);if(!d.c||!d.e||!d.p)throw 0;S=d;save();toast('Restored');render()}catch(x){toast('Invalid backup')}}
-var ic=document.createElement('link');ic.rel='icon';ic.href='data:image/svg+xml,'+encodeURIComponent(LOGO);document.head.appendChild(ic);
+function rs2(){try{var d=JSON.parse($('bt').value);if(!d.c||!d.e||!d.p)throw 0;S=d;S.i=S.i||[];S.x=S.x||[];save();toast('Restored');render()}catch(x){toast('Invalid backup')}}
+var ic=document.createElement('link');ic.rel='icon';ic.href='data:image/svg+xml,'+encodeURIComponent(LOGO);document.head.appendChild(ic);$('lgo').innerHTML=LOGO;$('lgo').firstChild.style.cssText='width:100%;height:100%';lock();document.addEventListener('visibilitychange',function(){if(document.hidden)hid=Date.now();else if(hid&&Date.now()-hid>30000)lock()});
 render();
 </script></body></html>
